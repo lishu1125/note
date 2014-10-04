@@ -5,8 +5,7 @@ char* pc = 0; //将pointer设定为null
 char& pc = *pc //让reference代表null pointer的解引用
 #+END_SRC
 这是有害行为，其结果不可预期（C++对此没有定义）
-- “没有所谓的null reference”这个事实意味使用references可能会比使用pointers更富有效率。这是因为使用reference之前不需要
-测其有效性
+- “没有所谓的null reference”这个事实意味使用references可能会比使用pointers更富有效率。这是因为使用reference之前不需要测其有效性
 * *条款2：最好使用c++转型操作符*
 | static\_cast      | 基本上拥有与c旧式转型相同的威力与意义，以及相同的限制                                                              |
 | const\_cast       | 改变表达式中的常量行（constness）或变易性（volatileness）。最常见用途是将某一个对象的常量性去除                    |
