@@ -84,7 +84,7 @@ for (int i=0; i<10; ++i)
     if(a == static_cast<Array<int> >(b[i]))) ...
 #+END_SRC
 - 关键词explicit：只要constructors声明为explicit，编译器便不能因隐式类型转换的需要而调用它们
-- 没有任何一个转换程序可以内含一个以上的“用户定制转换行为（亦即单自变量或隐式类型转换操作符）”
+- 没有任何一个转换程序可以内含一个以上的“用户定制转换行为（亦即单自变量或隐式类型转换操作符）
 * *条款6：区别increment/decrement操作符的前置（prefix）和后置（postfix）形式*
 - 后置有一个int参数
 | 前置 | 返回一个reference |
@@ -99,11 +99,110 @@ i.operator++(0).operator++(0);
 - 后置式操作符的实现应以其前置式兄弟为基础
 * *条款7：千万不要重载&&，||和,操作符*
 * *条款8：了解各种不同意义的new和delete*
-| new operator | string *ps=new string("123"); 这个操作符是语言内建的，它的动作分两方面： |
-|              | 1.分配内存；2.调用constructor为刚才分配的内存中的那个对象设定初值        |
-| operator new | void* operator new(size_t size);                                         |
-|              | 和malloc一样，operator new的唯一任务就是分配内存                         |
-- placement new
+** new operator
+- 调用operator new分配足够的空间，并调用相关对象的构造函数
+- 不可以被重载
+#+BEGIN_SRC c++
+string *ps=new string("123");
+#+END_SRC
+** operator new
+- 只分配所要求的空间，不调用相关对象的构造函数
+- 可以被重载
+- 重载时，返回类型必须声明为void*
+- 重载时，第一个参数类型必须为表达要求分配空间的大小（字节），类型为size\_t
+- 重载时，可以带其它参数
+- 编译器本身就隐含着一个 void* operator new( size\_t )
+- 要实现不同的内存分配行为，应该重载operator new，而不是new
+- 我们经常看到这么一句话： operator new 可以重载， placement new 不可重载。其实此处所说的不可重载应该是指全局的 placement new 不可重载，对于类域中的 placement new 是可以重载的，而且只要重载了任何一种形式的 operator new 都应该顺便重载 placement new ， 即 void * operator new(std::size\_t count, void *ptr)
+- Operator new 由于其特殊性，编译器提供了默认提供 6 种全局重载形式，同时还允许用户提供自定义的全局 operator new ，其参数甚至可以和全局版本一样，除全局 placement new 外。对于类域，任何形式的 new 都是可以重载的，包括 placement new 形式
+全局的 operator new 函数有六种重载形式：
+#+BEGIN_SRC c++
+void *operator new(std::size_t count)
+    throw(std::bad_alloc); // 一般的版本
 
+void *operator new(std::size_t count,  // 兼容早版本的 new
+    const std::nothrow_t&) throw();    // 内存分配失败不会抛出异常
 
+void *operator new(std::size_t count, void *ptr) throw(); //placement 版本
 
+void *operator new[](std::size_t count)
+    throw(std::bad_alloc);
+
+void *operator new[](std::size_t count,
+    const std::nothrow_t&) throw();
+
+void *operator new[](std::size_t count, void *ptr) throw();
+#+END_SRC
+- 重载的operator new必须是类成员函数或全局函数，而不可以是某一名空间之内的函数或是全局静态函数
+- 如果重载了一个operator new，记得一定要在相同的范围内重载operator delete
+如果使用不同的参数类型重载operator new/delete，则请采用如下函数声明形式：
+#+BEGIN_SRC c++
+//返回的指针必须能被普通的 ::operator delete(void*) 释放  
+void* operator new(size_t size, const char* file, int line);  
+//析构函数抛异常时被调用  
+void operator delete(void* p, const char* file, int line);
+#+END_SRC
+调用时采用以下方式：
+#+BEGIN_SRC c++
+string* pStr = new (__FILE, __LINE__) string;
+#+END_SRC
+这样就能跟踪内存分配的具体位置，定位这个动作发生在哪个文件的哪一行代码中了。在“检测内存错误”和“统计内存使用数据”时通常会用这种方式重载
+- 某个class重载operator new时必须将其定义为类的静态函数。因为operator new是在类的具体对象被构建出来之前调用的，在调用operator new的时候this指针尚未诞生，因此重载的 operator new必须是static的：
+#+BEGIN_SRC c++
+class B  
+{  
+public:  
+     static void * operator new(size_t size);  
+     static void operator delete(void *p);  
+     // other members  
+};  
+void *B::operator new(size_t size)  
+{  
+    ...  
+}  
+void B::operator delete(void *p)  
+{  
+    ...  
+} 
+#+END_SRC
+** placement new
+- placement new 是重载operator new 的一个标准、全局的版本，它不能够被自定义的版本代替
+- placement new 并不分配内存，只是返回指向已经分配好的某段内存的一个指针。因此不能删除它，但需要调用对象的析构函数
+- Placement new使用步骤
+第一步 缓存提前分配（有三种方式）
+
+在堆上进行分配：
+#+BEGIN_SRC c++
+class Task;
+char * buff = new [sizeof(Task)]; //分配内存
+#+END_SRC
+(请注意auto或者static内存并非都正确地为每一个对象类型排列，所以，你将不能以placement new使用它们。)
+
+在栈上进行分配：
+#+BEGIN_SRC c++
+class Task;
+char buf[N*sizeof(Task)]; //分配内存
+#+END_SRC
+直接通过地址来使用(必须是有意义的地址)：
+#+BEGIN_SRC c++
+void* buf = reinterpret_cast<void*> (0xF00F);
+#+END_SRC
+第二步 对象的分配
+#+BEGIN_SRC c++
+Task *ptask = new(buf) Task;
+#+END_SRC
+第三步 使用
+#+BEGIN_SRC c++
+ptask->memberfunction();
+ptask-> member;
+#+END_SRC
+第四步 对象的析构
+#+BEGIN_SRC c++
+ptask->~Task(); //调用外在的析构函数
+#+END_SRC
+第五步 释放
+你可以反复利用缓存并给它分配一个新的对象（重复步骤2，3，4），如果你不打算再次使用这个缓存，你可以象这样释放它：
+#+BEGIN_SRC c++
+delete [] buf;
+#+END_SRC
+跳过任何步骤就可能导致运行时间的崩溃，内存泄露，以及其它的意想不到的情况
