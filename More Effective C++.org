@@ -83,3 +83,27 @@ for (int i=0; i<10; ++i) {
 for (int i=0; i<10; ++i)
     if(a == static_cast<Array<int> >(b[i]))) ...
 #+END_SRC
+- 关键词explicit：只要constructors声明为explicit，编译器便不能因隐式类型转换的需要而调用它们
+- 没有任何一个转换程序可以内含一个以上的“用户定制转换行为（亦即单自变量或隐式类型转换操作符）”
+* *条款6：区别increment/decrement操作符的前置（prefix）和后置（postfix）形式*
+- 后置有一个int参数
+| 前置 | 返回一个reference |
+| 后置 | 返回一个const对象 |
+为什么后置操作符必须返回一个const对象，如果不这样，以下动作是合法的：
+#+BEGIN_SRC c++
+UPInt i;
+i++++; //实施后置操作符两次
+
+i.operator++(0).operator++(0);
+#+END_SRC
+- 后置式操作符的实现应以其前置式兄弟为基础
+* *条款7：千万不要重载&&，||和,操作符*
+* *条款8：了解各种不同意义的new和delete*
+| new operator | string *ps=new string("123"); 这个操作符是语言内建的，它的动作分两方面： |
+|              | 1.分配内存；2.调用constructor为刚才分配的内存中的那个对象设定初值        |
+| operator new | void* operator new(size_t size);                                         |
+|              | 和malloc一样，operator new的唯一任务就是分配内存                         |
+- placement new
+
+
+
