@@ -1,0 +1,6 @@
+* *读书*
+** DOING 读More Effective C++
+   - State "DOING"      from "TODO"       [2014-10-04 周六 15:25]
+
+* *提高*
+** TODO 机器学习
